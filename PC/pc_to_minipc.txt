@@ -34,4 +34,172 @@ ping -c 4 192.168.10.20
 
 
 
+------------------------------
+## 🌐 The Complete Distributed System Architecture
+
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                           YOUR PHONE HOTSPOT                           │
+ │                     Wireless Subnet: 10.119.16.x                       │
+ └───────────────────┬────────────────────────────────┬───────────────────┘
+                     │ (Wireless Wi-Fi)               │ (Wireless Wi-Fi)
+                     ▼                                ▼
+┌───────────────────────────────────────┐ ┌───────────────────────────────────────┐
+│              YOUR LAPTOP              │ │            AOOSTAR MINI PC            │
+│       Wireless IP: 10.119.16.49       │ │      Wireless IP: 10.119.16.181       │
+│                                       │ │                                       │
+│ Run: Symmetrical Zenoh Client         │ │ Run: Zenoh Router Hub (tcp/0.0.0.0)   │
+│ Run: Native RViz2 Graphical Display   │ │ Run: Ouster OS1-32 LiDAR Driver Node  │
+└───────────────────────────────────────┘ └───────────────────┬───────────────────┘
+                                                              │
+                                                              │ (High-Speed Ethernet Cable)
+                                                              │ Wired Static Subnet: 10.0.0.x
+                                                              ▼
+                                          ┌───────────────────────────────────────┐
+                                          │            JETSON ORIN NX             │
+                                          │          Wired IP: 10.0.0.1           │
+                                          │                                       │
+                                          │ Run: ZED 2i Camera Wrapper Node       │
+                                          └───────────────────────────────────────┘
+
+------------------------------
+## Phase 1: Host-Level Physical Network Configurations
+Run these commands directly on the raw host machine terminals (outside of Docker) to establish the physical subnets.
+## 1. Configure the Mobile Hotspot over Wi-Fi
+
+   1. Turn on your mobile phone's hotspot.
+   2. Connect your Laptop to the hotspot network.
+   3. Connect your Mini PC to the hotspot network.
+   (If headlessly controlling the Mini PC via the temporary USB management cable, run this from the Mini PC terminal):
+   
+   sudo nmcli device wifi rescan
+   sudo nmcli device wifi connect "YOUR_HOTSPOT_NAME" password "YOUR_HOTSPOT_PASSWORD"
+   
+   4. Extract the wireless IP footprints allocated by your phone for later use:
+   * On Mini PC: Run ip a show dev wlp4s0 (Our target was: 10.119.16.181)
+      * On Laptop: Run ip a show dev wlan0 or wlp... (Our target was: 10.119.16.49)
+   
+## 2. Configure the High-Speed LAN Backbone Cable
+Ensures the heavy point cloud streams pass between the two robot computers without choking the phone's Wi-Fi.
+
+* On the Jetson Orin NX Host Terminal (manas@manas-desktop):
+
+# Authorize local Docker container layers to output graphics to your monitor
+xhost +local:docker
+# Force the wired LAN port to a manual static IP block
+sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 10.0.0.1/24 ipv4.gateway "0.0.0.0"
+sudo nmcli connection up "Wired connection 1"
+
+* On the Mini PC Host Terminal (spring@spring):
+
+# Force the secondary computer-to-computer LAN port link onto the static subnet
+sudo nmcli connection modify "Jetson Ethernet" ipv4.method manual ipv4.addresses 10.0.0.2/24 ipv4.gateway "0.0.0.0"
+sudo nmcli connection up "Jetson Ethernet"
+# Configure the dedicated LiDAR hardware port (eno1) into Link-Local safety fallback mode
+sudo nmcli connection add type ethernet con-name "Ouster_LiDAR" ifname eno1 ipv4.method link-local ipv4.addresses "" ipv4.gateway ""
+sudo nmcli connection up "Ouster_LiDAR"
+
+
+------------------------------
+## Phase 2: Remote Wireless Management (Wireless Jump Bridge)
+Once these network settings are set, you can unplug all physical monitors and wires from the robot. You manage everything wire-free from your laptop screen.
+
+   1. Open a terminal panel on your Laptop and hop wirelessly into the Mini PC:
+   
+   ssh spring@10.119.16.181
+   
+   2. Once inside the Mini PC terminal, run this secondary jump command down the physical LAN cable to manage the Jetson:
+   
+   ssh manas@10.0.0.1
+   
+   
+------------------------------
+## Phase 3: Hardware Sensor Initializations
+Run these commands inside your raw production workspaces to boot the spatial telemetry mapping systems.
+## 1. Launch the Ouster OS1-32 LiDAR (On the Mini PC Workspace)
+(⚠️ Hardware Anchor: Ensure the LiDAR is sitting flat/face down on your workspace during this step to clear its optical boot verification safety locks).
+
+# Enter your workspace container layer
+docker run -it --rm --name pc_brain --network host -v ~/ros2_ws:/workspace -w /workspace ros:humble bash
+# Inside the container shell: Bind your localized ROS environment parameters
+export ROS_DOMAIN_ID=42
+export ROS_IP=10.0.0.2
+# Source and fire up the background data driver
+cd /ouster_ws
+source install/setup.bash
+ros2 launch ouster_ros sensor.launch.xml sensor_hostname:=169.254.177.46 udp_dest:=169.254.12.36 viz:=false
+
+## 2. Launch the Optimized ZED 2i Stereo Camera (On the Jetson Workspace)
+(⚠️ Hardware Anchor: Ensure the camera is sitting completely flat/face down on your bench during bootup so its highly sensitive internal tracking IMU gyroscopes initialize properly).
+
+# Enter your graphical-enabled graphics container layer
+docker run -it --rm --name jetson_eye --network host --runtime nvidia --gpus all --device /dev/bus/usb -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v ~/ros2_ws:/workspace -w /workspace stereolabs/zed:4.1-gl-devel-cuda11.4-ubuntu22.04 bash
+# Inside the container shell: Match your environment tracking domain frequencies
+export ROS_DOMAIN_ID=42
+export ROS_IP=10.0.0.1
+# Source and launch the wrapper node with downsampled parameters to prevent Wi-Fi saturation
+cd /workspace
+source install/setup.bash
+ros2 launch zed_wrapper zed_camera.launch.py model:=zed2i pub_frame_rate:=10.0 point_cloud_freq:=5.0 depth_downsample_factor:=2.0
+
+------------------------------
+## Phase 4: Establishing the Multi-Machine Zenoh-DDS Tunnel
+Since mobile hotspots explicitly block default ROS 2 UDP Multicast traffic over the air, we deploy symmetrical Zenoh containers to funnel the data through stable TCP channels.
+## 1. Flush any hanging network port blockers (On the Mini PC Host)
+
+sudo pkill -f zenoh-bridge-dds
+docker rm -f $(docker ps -a -q --filter ancestor=eclipse/zenoh-bridge-ros2dds:latest) 2>/dev/null || true
+
+## 2. Launch the Master Zenoh Router Hub (On the Mini PC Terminal)
+We listen on 0.0.0.0:7447 to bridge data cleanly across both your internal LAN line and the wireless Wi-Fi link at the same time:
+
+docker run --rm -it --net=host \
+  -e ROS_DISTRO=humble \
+  -e ROS_DOMAIN_ID=42 \
+  eclipse/zenoh-bridge-ros2dds:latest \
+  --listen tcp/0.0.0.0:7447
+
+## 3. Launch the Symmetrical Zenoh Client Peer (Locally on your Laptop Terminal)
+Open a local terminal prompt on your laptop (do not SSH out) and run this container to catch the incoming over-the-air TCP stream:
+
+docker run --rm -it --net=host \
+  -e ROS_DISTRO=humble \
+  -e ROS_DOMAIN_ID=42 \
+  eclipse/zenoh-bridge-ros2dds:latest \
+  --connect tcp/10.119.16.181:7447
+
+------------------------------
+## Phase 5: Wire-Free Data Verification & Visualization
+Everything is now synchronized on Domain 42 over the air.
+## 1. Refresh Your Local Laptop Tracking Cache
+Open a separate local terminal tab on your laptop and force-restart your background network discovery daemons:
+
+ros2 daemon stop && ros2 daemon start
+export ROS_DOMAIN_ID=42
+export ROS_LOCALHOST_ONLY=0
+
+## 2. Confirm the Active Graph Tree
+Verify that your laptop can see the full, fused multi-machine data tree wirelessly:
+
+ros2 topic list
+
+(Your screen will populate with /ouster/points, /ouster/imu, and /zed/zed_node/point_cloud/cloud_registered).
+## 3. Run the Graphical Visualization Console
+Type this into your laptop terminal to bring up your 3D interface window natively:
+
+rviz2
+
+## Final RViz Settings Setup Configuration:
+
+   1. Under Global Options -> Change Fixed Frame to: os_sensor.
+   2. Click Add (bottom left) -> By topic tab -> Select /ouster/points (PointCloud2).
+   3. Click Add -> By topic tab -> Select /zed/zed_node/point_cloud/cloud_registered (PointCloud2).
+   4. Set the rendering Style of both layers to Boxes with a Size value of 0.03.
+
+
+
+
+
+
+
+
 
