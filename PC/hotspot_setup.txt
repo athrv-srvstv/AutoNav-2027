@@ -1,0 +1,13 @@
+1. sudo ip link set l4tbr0 up 2>/dev/null || true
+
+2. ssh spring@192.168.55.100
+
+3. ip link
+
+4. # Force the wired port to a manual, permanent static IP address layer (10.0.0.2)
+sudo nmcli connection modify "Jetson Ethernet" ipv4.method manual ipv4.addresses 10.0.0.2/24 ipv4.gateway "0.0.0.0"
+
+# Apply the changes to the physical port immediately
+sudo nmcli connection up "Jetson Ethernet"
+
+5. 
