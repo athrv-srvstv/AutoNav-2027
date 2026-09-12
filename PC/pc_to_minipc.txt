@@ -12,6 +12,15 @@ sudo nmcli connection up "Wired connection 1"
 
 
 3. ssh manas@10.0.0.1
+to change this ip : 
+# 1. Update the method to manual, assign the new IP, and set the local netmask (/24)
+sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 192.168.10.10/24 ipv4.gateway "0.0.0.0"
+
+# 2. Restart the physical port profile to apply the change instantly
+sudo nmcli connection up "Wired connection 1"
+
+
+4. 
 
 
 
