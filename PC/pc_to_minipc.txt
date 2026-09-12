@@ -3,3 +3,15 @@ sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addres
 sudo nmcli connection up "Wired connection 1"
 
 
+2. connect to wifi
+  sudo nmcli device wifi rescan
+  sudo nmcli device wifi list
+  sudo nmcli device wifi connect "YOUR_HOTSPOT_NAME" password "YOUR_HOTSPOT_PASSWORD"
+  ip a show dev wlp4s0
+  ssh spring@<wireless_ip>
+
+
+3. 
+
+
+
