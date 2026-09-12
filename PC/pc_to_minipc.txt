@@ -10,6 +10,14 @@ sudo nmcli connection up "Wired connection 1"
   ip a show dev wlp4s0
   ssh spring@<wireless_ip>
 
+to change this ip : 
+"# 1. Update the Mini PC port link profile to the matching subnet range
+sudo nmcli connection modify "Jetson Ethernet" ipv4.method manual ipv4.addresses 192.168.10.20/24 ipv4.gateway "0.0.0.0"
+
+# 2. Restart the physical port profile
+sudo nmcli connection up "Jetson Ethernet"
+"
+
 
 3. ssh manas@10.0.0.1
 to change this ip : 
@@ -20,7 +28,10 @@ sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addres
 sudo nmcli connection up "Wired connection 1"
 
 
-4. 
+4. Whenever you alter the physical IP layer framework, you must update the software parameters to point to the new addresses:Update the ROS Network Variables: Inside your Docker container startup scripts or profiles, you must change your ROS_IP definitions to match the new settings:Jetson container: export ROS_IP=192.168.10.10 [1]Mini PC container: export ROS_IP=192.168.10.20 [1]Update the Zenoh Bridge Execution Loops: When firing up the TCP tunnels, pass the newly updated listening parameters:Mini PC container: ./zenoh-bridge-dds --listen tcp/192.168.10.20:7447 [1]Jetson container: ./zenoh-bridge-dds --connect tcp/192.168.10.20:7447 [1]Verify via Ping: Always run a quick diagnostic check to make sure the network is active:
+
+ping -c 4 192.168.10.20
+
 
 
 
