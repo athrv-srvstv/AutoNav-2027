@@ -167,6 +167,14 @@ docker run --rm -it --net=host \
   eclipse/zenoh-bridge-ros2dds:latest \
   --connect tcp/10.119.16.181:7447
 
+
+4. JEtson
+docker run --rm -it --net=host \
+  -e ROS_DISTRO=humble \
+  -e ROS_DOMAIN_ID=42 \
+  eclipse/zenoh-bridge-ros2dds:latest \
+  --connect tcp/10.119.16.181:7447
+
 ------------------------------
 ## Phase 5: Wire-Free Data Verification & Visualization
 Everything is now synchronized on Domain 42 over the air.
