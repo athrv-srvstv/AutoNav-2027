@@ -11,7 +11,7 @@ sudo nmcli connection up "Wired connection 1"
   ssh spring@<wireless_ip>
 
 
-3. 
+3. ssh manas@10.0.0.1
 
 
 
