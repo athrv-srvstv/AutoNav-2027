@@ -1,0 +1,5 @@
+1. # Force your laptop's ethernet connection to manual static mode on the robot subnet
+sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 10.0.0.5/24 ipv4.gateway "0.0.0.0"
+sudo nmcli connection up "Wired connection 1"
+
+
