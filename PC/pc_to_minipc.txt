@@ -1,3 +1,58 @@
+ath0rv0@ath0rv0Laptop-15-fa2xxx:~$ sudo nmcli connection modify "Wired connection 1" ipv4.method shared ipv4.addresses 10.0.0.1/24
+sudo nmcli connection up "Wired connection 1"
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/11)
+ath0rv0@ath0rv0Laptop-15-fa2xxx:~$ cat /var/lib/NetworkManager/dnsmasq-eno1.leases
+ip neigh show dev eno1
+ping -6 -c 3 ff02::1%eno1
+cat: /var/lib/NetworkManager/dnsmasq-eno1.leases: Permission denied
+PING ff02::1%eno1(ff02::1%eno1) 56 data bytes
+64 bytes from fe80::78df:5c9d:4e97:1716%eno1: icmp_seq=1 ttl=64 time=0.084 ms
+64 bytes from fe80::3445:d932:5d48:fcea%eno1: icmp_seq=1 ttl=64 time=1.15 ms
+64 bytes from fe80::78df:5c9d:4e97:1716%eno1: icmp_seq=2 ttl=64 time=0.100 ms
+64 bytes from fe80::3445:d932:5d48:fcea%eno1: icmp_seq=2 ttl=64 time=0.300 ms
+64 bytes from fe80::78df:5c9d:4e97:1716%eno1: icmp_seq=3 ttl=64 time=0.097 ms
+
+--- ff02::1%eno1 ping statistics ---
+3 packets transmitted, 3 received, +2 duplicates, 0% packet loss, time 2036ms
+rtt min/avg/max/mdev = 0.084/0.345/1.148/0.409 ms
+ath0rv0@ath0rv0Laptop-15-fa2xxx:~$ sudo tcpdump -i eno1 -n
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eno1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+^C
+0 packets captured
+0 packets received by filter
+0 packets dropped by kernel
+ath0rv0@ath0rv0Laptop-15-fa2xxx:~$ ssh spring@fe80::3445:d932:5d48:fcea%eno1
+The authenticity of host 'fe80::3445:d932:5d48:fcea%eno1 (fe80::3445:d932:5d48:fcea%eno1)' can't be established.
+ED25519 key fingerprint is SHA256:W9wWHCTaOctRp1qVmxi6dr+OisJOKdDFZ6pMfeB4KGo.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:2: [hashed name]
+    ~/.ssh/known_hosts:5: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'fe80::3445:d932:5d48:fcea%eno1' (ED25519) to the list of known hosts.
+spring@fe80::3445:d932:5d48:fcea%eno1's password: 
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 6.8.0-107-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+Expanded Security Maintenance for Applications is not enabled.
+
+604 updates can be applied immediately.
+322 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+157 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+Last login: Tue Sep 15 19:03:51 2026 from 10.119.16.49
+
+
+
+
+
+
 1. # Force your laptop's ethernet connection to manual static mode on the robot subnet
 sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 10.0.0.5/24 ipv4.gateway "0.0.0.0"
 sudo nmcli connection up "Wired connection 1"
